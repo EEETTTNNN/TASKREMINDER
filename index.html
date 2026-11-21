@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#FFD600" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Entretien" />
+  <title>Entretien Maison — Tâches récurrentes</title>
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="apple-touch-icon" id="apple-icon" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg: #F4F1EA;
+      --card: #FFFFFF;
+      --ink: #111111;
+      --yellow: #FFD600;
+      --cyan: #4DEEEA;
+      --green: #69F0AE;
+      --orange: #FFAB40;
+      --red: #FF5252;
+      --muted: #666666;
+      --border: 3px solid #111111;
+      --shadow: 4px 4px 0px #111111;
+      --shadow-sm: 2px 2px 0px #111111;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--ink);
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: calc(84px + env(safe-area-inset-bottom));
+    }
+
+    header {
+      background: var(--yellow);
+      border-bottom: var(--border);
+      padding: 16px 16px 14px;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.35rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      text-transform: uppercase;
+    }
+
+    .sync-badge {
+      font-size: 0.75rem;
+      font-weight: 800;
+      padding: 4px 8px;
+      border: 2px solid var(--ink);
+      background: var(--card);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .sync-badge.ok { background: var(--green); }
+    .sync-badge.err { background: var(--red); color: #fff; }
+
+    main {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .banner {
+      background: var(--cyan);
+      border: var(--border);
+      box-shadow: var(--shadow);
+      padding: 12px 14px;
+      margin-bottom: 16px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+
+    .banner.warn { background: var(--orange); }
+
+    .card {
+      background: var(--card);
+      border: var(--border);
+      box-shadow: var(--shadow);
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+
+    .section-title {
+      font-size: 0.95rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      margin: 0 0 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 1rem;
+      font-family: inherit;
+      font-weight: 600;
+      border: var(--border);
+      background: #FFF;
+      color: var(--ink);
+      border-radius: 0;
+      margin-bottom: 12px;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      background: #FFFDF0;
+    }
+
+    .row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1.3fr;
+      gap: 10px;
+    }
+
+    .row-equal {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      padding: 11px 14px;
+      border: var(--border);
+      background: var(--yellow);
+      color: var(--ink);
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      border-radius: 0;
+      transition: transform 0.06s ease, box-shadow 0.06s ease;
+    }
+
+    button:active {
+      transform: translate(2px, 2px);
+      box-shadow: 2px 2px 0px var(--ink);
+    }
+
+    button.btn-green { background: var(--green); }
+    button.btn-cyan { background: var(--cyan); }
+    button.btn-white { background: #FFFFFF; }
+    button.btn-red { background: var(--red); color: #FFFFFF; }
+    button.btn-full { width: 100%; }
+    button.btn-sm {
+      padding: 7px 10px;
+      font-size: 0.8rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Chore item */
+    .chore-card {
+      background: var(--card);
+      border: var(--border);
+      box-shadow: var(--shadow);
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+
+    .chore-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .chore-title {
+      font-size: 1.1rem;
+      font-weight: 900;
+      margin: 0;
+    }
+
+    .chore-meta {
+      font-size: 0.82rem;
+      color: var(--muted);
+      font-weight: 700;
+      margin-top: 2px;
+    }
+
+    .status-pill {
+      font-size: 0.78rem;
+      font-weight: 900;
+      padding: 4px 8px;
+      border: 2px solid var(--ink);
+      white-space: nowrap;
+      text-transform: uppercase;
+    }
+
+    .status-overdue { background: var(--red); color: #FFF; }
+    .status-today { background: var(--yellow); color: var(--ink); }
+    .status-soon { background: var(--orange); color: var(--ink); }
+    .status-ok { background: var(--green); color: var(--ink); }
+
+    .progress-track {
+      height: 12px;
+      border: 2px solid var(--ink);
+      background: #EAE6DC;
+      margin: 10px 0 12px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--green);
+      transition: width 0.25s ease;
+    }
+
+    .chore-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chore-dates {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #333;
+      line-height: 1.35;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 6px;
+    }
+
+    /* Bottom nav */
+    nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--card);
+      border-top: var(--border);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      padding-bottom: env(safe-area-inset-bottom);
+      z-index: 30;
+    }
+
+    nav button {
+      border: none;
+      box-shadow: none;
+      background: transparent;
+      padding: 14px 8px;
+      font-size: 0.9rem;
+    }
+
+    nav button:first-child {
+      border-right: var(--border);
+    }
+
+    nav button.active {
+      background: var(--yellow);
+    }
+
+    .hidden { display: none !important; }
+
+    .toast {
+      position: fixed;
+      bottom: calc(76px + env(safe-area-inset-bottom));
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--ink);
+      color: #FFF;
+      padding: 10px 16px;
+      font-weight: 800;
+      font-size: 0.88rem;
+      border: 2px solid var(--yellow);
+      z-index: 50;
+      white-space: nowrap;
+      box-shadow: var(--shadow);
+    }
+
+    .mono-box {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.78rem;
+      background: #EFECE4;
+      border: 2px solid var(--ink);
+      padding: 8px;
+      word-break: break-all;
+      margin-bottom: 10px;
+      user-select: all;
+    }
+
+    .filter-bar {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+      margin-bottom: 12px;
+    }
+
+    .filter-chip {
+      padding: 6px 10px;
+      font-size: 0.78rem;
+      background: #FFF;
+      box-shadow: var(--shadow-sm);
+      white-space: nowrap;
+    }
+
+    .filter-chip.active {
+      background: var(--cyan);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <h1>Entretien Maison</h1>
+    <span id="sync-status" class="sync-badge">Non connecté</span>
+  </div>
+</header>
+
+<main>
+  <!-- VUE TÂCHES -->
+  <section id="view-tasks">
+    <div id="ios-install-banner" class="banner warn hidden">
+      Sur iPhone : appuie sur <strong>Partager</strong> (carré avec flèche) puis <strong>Sur l'écran d'accueil</strong>, et ouvre l'application depuis cette icône pour activer les notifications.
+    </div>
+
+    <div id="setup-prompt-banner" class="banner hidden">
+      Commence par renseigner ton URL et ta clé Supabase dans l'onglet <strong>Réglages</strong> en bas.
+    </div>
+
+    <!-- Formulaire ajout / édition -->
+    <div class="card">
+      <div class="section-title">
+        <span id="form-heading">Nouvelle tâche récurrente</span>
+        <button id="btn-cancel-edit" class="btn-sm btn-white hidden" type="button">Annuler</button>
+      </div>
+      <form id="chore-form">
+        <input type="hidden" id="edit-id" />
+        <label for="f-title">Tâche</label>
+        <input type="text" id="f-title" placeholder="Ex. Nettoyer le four, Embouts de mitigeur..." required />
+
+        <div class="row-2">
+          <div>
+            <label for="f-freq-val">Tous les</label>
+            <input type="number" id="f-freq-val" min="1" max="365" value="1" required />
+          </div>
+          <div>
+            <label for="f-freq-unit">Période</label>
+            <select id="f-freq-unit">
+              <option value="days">Jours</option>
+              <option value="weeks">Semaines</option>
+              <option value="months" selected>Mois</option>
+              <option value="years">Ans</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row-equal">
+          <div>
+            <label for="f-category">Zone / Catégorie</label>
+            <input type="text" id="f-category" placeholder="Cuisine, Salle de bain..." value="Maison" />
+          </div>
+          <div>
+            <label for="f-last-done">Dernière fois fait</label>
+            <input type="date" id="f-last-done" required />
+          </div>
+        </div>
+
+        <button type="submit" id="btn-submit" class="btn-full btn-yellow">Ajouter la tâche</button>
+      </form>
+    </div>
+
+    <!-- Filtres + Liste -->
+    <div class="filter-bar" id="filter-bar">
+      <button type="button" class="filter-chip active" data-filter="all">Toutes</button>
+      <button type="button" class="filter-chip" data-filter="due">À faire / Retard</button>
+      <button type="button" class="filter-chip" data-filter="soon">Bientôt</button>
+    </div>
+
+    <div id="chores-list"></div>
+
+    <div id="empty-state" class="card hidden" style="text-align:center;">
+      <p style="font-weight:700; margin-top:0;">Aucune tâche enregistrée pour l'instant.</p>
+      <button type="button" id="btn-seed" class="btn-cyan">Charger 4 exemples (four, hotte, vitres, mitigeurs)</button>
+    </div>
+  </section>
+
+  <!-- VUE RÉGLAGES -->
+  <section id="view-settings" class="hidden">
+    <div class="card">
+      <div class="section-title">1. Connexion Supabase</div>
+      <label for="cfg-url">Project URL</label>
+      <input type="url" id="cfg-url" placeholder="https://xxxxxxxxxxxx.supabase.co" />
+
+      <label for="cfg-anon">Clé API (anon public)</label>
+      <input type="text" id="cfg-anon" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6..." />
+
+      <label for="cfg-vapid">Clé publique VAPID (pour les notifications)</label>
+      <input type="text" id="cfg-vapid" placeholder="BEl62iUYgUivxIkv69yViEuiBIa..." />
+
+      <button type="button" id="btn-save-cfg" class="btn-full btn-green">Enregistrer la configuration</button>
+    </div>
+
+    <div class="card">
+      <div class="section-title">2. Générateur de clés VAPID</div>
+      <p style="font-size:0.85rem; margin-top:0; line-height:1.4;">
+        Si tu n'as pas encore de clés VAPID, génère-les ici une seule fois, puis copie-les dans <strong>Supabase → Edge Functions → Secrets</strong>.
+      </p>
+      <button type="button" id="btn-gen-vapid" class="btn-full btn-cyan" style="margin-bottom:12px;">Générer une paire de clés VAPID</button>
+
+      <div id="vapid-output" class="hidden">
+        <label>VAPID_PUBLIC_KEY (à mettre aussi dans le champ ci-dessus)</label>
+        <div id="out-vapid-pub" class="mono-box"></div>
+
+        <label>VAPID_PRIVATE_KEY (à garder uniquement dans les Secrets Supabase)</label>
+        <div id="out-vapid-priv" class="mono-box"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">3. Notifications iPhone</div>
+      <p id="push-status-text" style="font-size:0.85rem; margin-top:0; font-weight:700;">
+        Statut : en attente de configuration.
+      </p>
+      <div class="row-equal">
+        <button type="button" id="btn-enable-push" class="btn-yellow">Activer sur cet appareil</button>
+        <button type="button" id="btn-test-push" class="btn-white">Tester un envoi</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">4. Sauvegarde locale (JSON)</div>
+      <div class="row-equal">
+        <button type="button" id="btn-export" class="btn-white">Exporter JSON</button>
+        <button type="button" id="btn-import-trigger" class="btn-white">Importer JSON</button>
+      </div>
+      <input type="file" id="import-file" accept=".json" class="hidden" />
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button type="button" id="nav-tasks" class="active">Tâches</button>
+  <button type="button" id="nav-settings">Réglages</button>
+</nav>
+
+<div id="toast" class="toast hidden"></div>
+
+<script>
+  // --- Génération dynamique de l'icône Apple Touch ---
+  (function generateAppleIcon() {
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#FFD600";
+    ctx.fillRect(0, 0, 512, 512);
+    ctx.strokeStyle = "#111111";
+    ctx.lineWidth = 28;
+    ctx.strokeRect(14, 14, 484, 484);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = 46;
+    ctx.beginPath();
+    ctx.moveTo(145, 265);
+    ctx.lineTo(225, 345);
+    ctx.lineTo(375, 175);
+    ctx.stroke();
+    document.getElementById("apple-icon").href = canvas.toDataURL("image/png");
+  })();
+
+  // --- État global ---
+  const STORAGE_KEY = "entretien_maison_cfg_v1";
+  let cfg = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+  let sb = null;
+  let chores = [];
+  let currentFilter = "all";
+
+  // --- Utilitaires Date ---
+  function getTodayStr() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+
+  function parseLocalDate(str) {
+    const [y, m, d] = str.split("-").map(Number);
+    return new Date(y, m - 1, d, 12, 0, 0);
+  }
+
+  function formatDateFR(str) {
+    if (!str) return "-";
+    const [y, m, d] = str.split("-");
+    return `${d}/${m}/${y}`;
+  }
+
+  function computeNextDue(lastDateStr, val, unit) {
+    const dt = parseLocalDate(lastDateStr);
+    const n = parseInt(val, 10) || 1;
+    if (unit === "days") {
+      dt.setDate(dt.getDate() + n);
+    } else if (unit === "weeks") {
+      dt.setDate(dt.getDate() + n * 7);
+    } else if (unit === "months") {
+      const targetMonth = dt.getMonth() + n;
+      const day = dt.getDate();
+      dt.setDate(1);
+      dt.setMonth(targetMonth);
+      const maxDay = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate();
+      dt.setDate(Math.min(day, maxDay));
+    } else if (unit === "years") {
+      dt.setFullYear(dt.getFullYear() + n);
+    }
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth() + 1).padStart(2, "0");
+    const day = String(dt.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+
+  function diffDays(dateStrA, dateStrB) {
+    const a = parseLocalDate(dateStrA);
+    const b = parseLocalDate(dateStrB);
+    return Math.round((b - a) / (1000 * 60 * 60 * 24));
+  }
+
+  function freqLabel(val, unit) {
+    const labels = {
+      days: val > 1 ? `Tous les ${val} jours` : "Tous les jours",
+      weeks: val > 1 ? `Toutes les ${val} semaines` : "Toutes les semaines",
+      months: `Tous les ${val} mois`,
+      years: val > 1 ? `Tous les ${val} ans` : "Tous les ans"
+    };
+    return labels[unit] || `${val} ${unit}`;
+  }
+
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function showToast(msg) {
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.remove("hidden");
+    clearTimeout(window._toastTimer);
+    window._toastTimer = setTimeout(() => el.classList.add("hidden"), 2800);
+  }
+
+  // --- Détection iOS Standalone ---
+  function checkStandalone() {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isStandalone = window.navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
+    if (isIOS && !isStandalone) {
+      document.getElementById("ios-install-banner").classList.remove("hidden");
+    }
+  }
+
+  // --- Initialisation Supabase ---
+  function initSupabase() {
+    const badge = document.getElementById("sync-status");
+    const promptBanner = document.getElementById("setup-prompt-banner");
+
+    document.getElementById("cfg-url").value = cfg.url || "";
+    document.getElementById("cfg-anon").value = cfg.anon || "";
+    document.getElementById("cfg-vapid").value = cfg.vapid || "";
+
+    if (!cfg.url || !cfg.anon) {
+      badge.textContent = "Non configuré";
+      badge.className = "sync-badge err";
+      promptBanner.classList.remove("hidden");
+      return false;
+    }
+
+    promptBanner.classList.add("hidden");
+    sb = window.supabase.createClient(cfg.url, cfg.anon);
+    badge.textContent = "Connecté";
+    badge.className = "sync-badge ok";
+    return true;
+  }
+
+  async function loadChores() {
+    if (!sb) return;
+    const badge = document.getElementById("sync-status");
+    badge.textContent = "Synchro...";
+    const { data, error } = await sb
+      .from("chores")
+      .select("*")
+      .order("next_due_at", { ascending: true });
+
+    if (error) {
+      badge.textContent = "Erreur SQL";
+      badge.className = "sync-badge err";
+      showToast("Erreur : " + error.message);
+      return;
+    }
+
+    badge.textContent = "À jour";
+    badge.className = "sync-badge ok";
+    chores = data || [];
+    renderChores();
+  }
+
+  // --- Rendu des tâches ---
+  function renderChores() {
+    const list = document.getElementById("chores-list");
+    const empty = document.getElementById("empty-state");
+    const today = getTodayStr();
+
+    if (chores.length === 0) {
+      list.innerHTML = "";
+      empty.classList.remove("hidden");
+      return;
+    }
+    empty.classList.add("hidden");
+
+    const enriched = chores.map((c) => {
+      const remaining = diffDays(today, c.next_due_at);
+      const totalSpan = Math.max(1, diffDays(c.last_done_at, c.next_due_at));
+      const elapsed = Math.max(0, diffDays(c.last_done_at, today));
+      const pct = Math.min(100, Math.round((elapsed / totalSpan) * 100));
+
+      let statusText = "";
+      let statusClass = "status-ok";
+      let barColor = "var(--green)";
+      let bucket = "ok";
+
+      if (remaining < 0) {
+        const retard = Math.abs(remaining);
+        statusText = `Retard ${retard} j`;
+        statusClass = "status-overdue";
+        barColor = "var(--red)";
+        bucket = "due";
+      } else if (remaining === 0) {
+        statusText = "Aujourd'hui";
+        statusClass = "status-today";
+        barColor = "var(--yellow)";
+        bucket = "due";
+      } else if (remaining <= 5 || pct >= 85) {
+        statusText = `Dans ${remaining} j`;
+        statusClass = "status-soon";
+        barColor = "var(--orange)";
+        bucket = "soon";
+      } else {
+        statusText = remaining > 60
+          ? `Dans ~${Math.round(remaining / 30)} mois`
+          : `Dans ${remaining} j`;
+        statusClass = "status-ok";
+        barColor = "var(--green)";
+        bucket = "ok";
+      }
+
+      return { ...c, remaining, pct, statusText, statusClass, barColor, bucket };
+    });
+
+    const filtered = enriched.filter((c) => {
+      if (currentFilter === "due") return c.bucket === "due";
+      if (currentFilter === "soon") return c.bucket === "due" || c.bucket === "soon";
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      list.innerHTML = `<div class="card" style="text-align:center; font-weight:700;">Rien dans ce filtre.</div>`;
+      return;
+    }
+
+    list.innerHTML = filtered.map((c) => `
+      <div class="chore-card">
+        <div class="chore-header">
+          <div>
+            <h3 class="chore-title">${escapeHtml(c.title)}</h3>
+            <div class="chore-meta">${escapeHtml(c.category || "Maison")} • ${freqLabel(c.freq_value, c.freq_unit)}</div>
+          </div>
+          <span class="status-pill ${c.statusClass}">${c.statusText}</span>
+        </div>
+
+        <div class="progress-track">
+          <div class="progress-fill" style="width:${c.pct}%; background:${c.barColor};"></div>
+        </div>
+
+        <div class="chore-actions">
+          <div class="chore-dates">
+            Fait le : <strong>${formatDateFR(c.last_done_at)}</strong><br/>
+            Prochain : <strong>${formatDateFR(c.next_due_at)}</strong>
+          </div>
+          <div class="btn-group">
+            <button type="button" class="btn-sm btn-white" onclick="editChore('${c.id}')" title="Modifier">Éditer</button>
+            <button type="button" class="btn-sm btn-green" onclick="markDone('${c.id}')">Fait !</button>
+          </div>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  // --- Actions CRUD ---
+  document.getElementById("f-last-done").value = getTodayStr();
+
+  document.getElementById("chore-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!sb) {
+      showToast("Configure d'abord Supabase dans Réglages.");
+      return;
+    }
+
+    const id = document.getElementById("edit-id").value;
+    const title = document.getElementById("f-title").value.trim();
+    const freq_value = parseInt(document.getElementById("f-freq-val").value, 10) || 1;
+    const freq_unit = document.getElementById("f-freq-unit").value;
+    const category = document.getElementById("f-category").value.trim() || "Maison";
+    const last_done_at = document.getElementById("f-last-done").value || getTodayStr();
+    const next_due_at = computeNextDue(last_done_at, freq_value, freq_unit);
+
+    if (!title) return;
+
+    if (id) {
+      const { error } = await sb
+        .from("chores")
+        .update({ title, freq_value, freq_unit, category, last_done_at, next_due_at })
+        .eq("id", id);
+      if (error) return showToast("Erreur : " + error.message);
+      showToast("Tâche mise à jour");
+      resetForm();
+    } else {
+      const { error } = await sb
+        .from("chores")
+        .insert([{ title, freq_value, freq_unit, category, last_done_at, next_due_at }]);
+      if (error) return showToast("Erreur : " + error.message);
+      showToast("Tâche ajoutée");
+      document.getElementById("f-title").value = "";
+    }
+
+    await loadChores();
+  });
+
+  window.markDone = async function (id) {
+    if (!sb) return;
+    const item = chores.find((c) => c.id === id);
+    if (!item) return;
+
+    const today = getTodayStr();
+    const next_due_at = computeNextDue(today, item.freq_value, item.freq_unit);
+
+    const { error } = await sb
+      .from("chores")
+      .update({ last_done_at: today, next_due_at })
+      .eq("id", id);
+
+    if (error) return showToast("Erreur : " + error.message);
+    showToast(`Validé ! Prochain rappel le ${formatDateFR(next_due_at)}`);
+    await loadChores();
+  };
+
+  window.editChore = function (id) {
+    const item = chores.find((c) => c.id === id);
+    if (!item) return;
+    document.getElementById("edit-id").value = item.id;
+    document.getElementById("f-title").value = item.title;
+    document.getElementById("f-freq-val").value = item.freq_value;
+    document.getElementById("f-freq-unit").value = item.freq_unit;
+    document.getElementById("f-category").value = item.category || "Maison";
+    document.getElementById("f-last-done").value = item.last_done_at;
+    document.getElementById("form-heading").textContent = "Modifier la tâche";
+    document.getElementById("btn-submit").textContent = "Enregistrer";
+    document.getElementById("btn-cancel-edit").classList.remove("hidden");
+
+    // Ajouter un bouton supprimer si absent
+    if (!document.getElementById("btn-delete-edit")) {
+      const delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.id = "btn-delete-edit";
+      delBtn.className = "btn-full btn-red";
+      delBtn.style.marginTop = "8px";
+      delBtn.textContent = "Supprimer cette tâche";
+      delBtn.onclick = async () => {
+        if (!confirm("Supprimer définitivement cette tâche ?")) return;
+        await sb.from("chores").delete().eq("id", item.id);
+        resetForm();
+        showToast("Tâche supprimée");
+        await loadChores();
+      };
+      document.getElementById("chore-form").appendChild(delBtn);
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  function resetForm() {
+    document.getElementById("edit-id").value = "";
+    document.getElementById("f-title").value = "";
+    document.getElementById("f-freq-val").value = "1";
+    document.getElementById("f-freq-unit").value = "months";
+    document.getElementById("f-category").value = "Maison";
+    document.getElementById("f-last-done").value = getTodayStr();
+    document.getElementById("form-heading").textContent = "Nouvelle tâche récurrente";
+    document.getElementById("btn-submit").textContent = "Ajouter la tâche";
+    document.getElementById("btn-cancel-edit").classList.add("hidden");
+    const delBtn = document.getElementById("btn-delete-edit");
+    if (delBtn) delBtn.remove();
+  }
+
+  document.getElementById("btn-cancel-edit").addEventListener("click", resetForm);
+
+  // Exemples pré-remplis
+  document.getElementById("btn-seed").addEventListener("click", async () => {
+    if (!sb) return showToast("Configure d'abord Supabase dans Réglages.");
+    const today = getTodayStr();
+    const samples = [
+      { title: "Nettoyer le four", category: "Cuisine", freq_value: 1, freq_unit: "years" },
+      { title: "Dégraisser la hotte", category: "Cuisine", freq_value: 2, freq_unit: "months" },
+      { title: "Faire les vitres", category: "Maison", freq_value: 1, freq_unit: "months" },
+      { title: "Détartrer les embouts de mitigeur", category: "Salle de bain", freq_value: 1, freq_unit: "months" }
+    ].map((s) => ({
+      ...s,
+      last_done_at: today,
+      next_due_at: computeNextDue(today, s.freq_value, s.freq_unit)
+    }));
+
+    const { error } = await sb.from("chores").insert(samples);
+    if (error) return showToast("Erreur : " + error.message);
+    showToast("4 tâches ajoutées !");
+    await loadChores();
+  });
+
+  // --- Filtres & Navigation ---
+  document.querySelectorAll(".filter-chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      document.querySelectorAll(".filter-chip").forEach((c) => c.classList.remove("active"));
+      chip.classList.add("active");
+      currentFilter = chip.dataset.filter;
+      renderChores();
+    });
+  });
+
+  document.getElementById("nav-tasks").addEventListener("click", () => {
+    document.getElementById("view-tasks").classList.remove("hidden");
+    document.getElementById("view-settings").classList.add("hidden");
+    document.getElementById("nav-tasks").classList.add("active");
+    document.getElementById("nav-settings").classList.remove("active");
+  });
+
+  document.getElementById("nav-settings").addEventListener("click", () => {
+    document.getElementById("view-settings").classList.remove("hidden");
+    document.getElementById("view-tasks").classList.add("hidden");
+    document.getElementById("nav-settings").classList.add("active");
+    document.getElementById("nav-tasks").classList.remove("active");
+  });
+
+  // --- Sauvegarde Configuration ---
+  document.getElementById("btn-save-cfg").addEventListener("click", async () => {
+    cfg = {
+      url: document.getElementById("cfg-url").value.trim().replace(/\/$/, ""),
+      anon: document.getElementById("cfg-anon").value.trim(),
+      vapid: document.getElementById("cfg-vapid").value.trim()
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+    showToast("Configuration enregistrée");
+    if (initSupabase()) {
+      await loadChores();
+    }
+  });
+
+  // --- Générateur VAPID natif (Web Crypto API) ---
+  function bufferToBase64Url(buf) {
+    const bytes = new Uint8Array(buf);
+    let bin = "";
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
+  function base64UrlToUint8Array(base64url) {
+    const padding = "=".repeat((4 - (base64url.length % 4)) % 4);
+    const base64 = (base64url + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const raw = atob(base64);
+    const arr = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+    return arr;
+  }
+
+  document.getElementById("btn-gen-vapid").addEventListener("click", async () => {
+    const keyPair = await crypto.subtle.generateKey(
+      { name: "ECDSA", namedCurve: "P-256" },
+      true,
+      ["sign", "verify"]
+    );
+    const jwk = await crypto.subtle.exportKey("jwk", keyPair.privateKey);
+    const xBytes = base64UrlToUint8Array(jwk.x);
+    const yBytes = base64UrlToUint8Array(jwk.y);
+    const uncompressed = new Uint8Array(65);
+    uncompressed[0] = 0x04;
+    uncompressed.set(xBytes, 1);
+    uncompressed.set(yBytes, 33);
+
+    const pubKey = bufferToBase64Url(uncompressed);
+    const privKey = jwk.d;
+
+    document.getElementById("out-vapid-pub").textContent = pubKey;
+    document.getElementById("out-vapid-priv").textContent = privKey;
+    document.getElementById("vapid-output").classList.remove("hidden");
+    document.getElementById("cfg-vapid").value = pubKey;
+    showToast("Clés VAPID générées !");
+  });
+
+  // --- Notifications Web Push (iOS / Desktop) ---
+  document.getElementById("btn-enable-push").addEventListener("click", async () => {
+    const statusEl = document.getElementById("push-status-text");
+    if (!sb) return showToast("Configure d'abord Supabase.");
+    if (!cfg.vapid) return showToast("Renseigne la clé publique VAPID.");
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      statusEl.textContent = "Statut : non supporté (sur iPhone, ouvre depuis l'écran d'accueil).";
+      return;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        statusEl.textContent = "Statut : permission refusée dans les réglages.";
+        return;
+      }
+
+      const reg = await navigator.serviceWorker.register("./sw.js");
+      await navigator.serviceWorker.ready;
+
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: base64UrlToUint8Array(cfg.vapid)
+      });
+
+      const subJson = sub.toJSON();
+      const { error } = await sb.from("push_subscriptions").upsert(
+        {
+          endpoint: subJson.endpoint,
+          p256dh: subJson.keys.p256dh,
+          auth: subJson.keys.auth
+        },
+        { onConflict: "endpoint" }
+      );
+
+      if (error) throw error;
+      statusEl.textContent = "Statut : activé sur cet appareil !";
+      showToast("Notifications activées !");
+    } catch (err) {
+      statusEl.textContent = "Erreur : " + err.message;
+      showToast("Échec activation push");
+    }
+  });
+
+  document.getElementById("btn-test-push").addEventListener("click", async () => {
+    if (!cfg.url || !cfg.anon) return showToast("Configure d'abord Supabase.");
+    showToast("Envoi du test...");
+    try {
+      const res = await fetch(`${cfg.url}/functions/v1/send-chore-reminders?test=1`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${cfg.anon}`
+        }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur serveur");
+      showToast(`Notification envoyée (${data.sent} appareil)`);
+    } catch (err) {
+      showToast("Erreur : " + err.message);
+    }
+  });
+
+  // --- Export / Import JSON ---
+  document.getElementById("btn-export").addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(chores, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `entretien-maison-${getTodayStr()}.json`;
+    a.click();
+  });
+
+  document.getElementById("btn-import-trigger").addEventListener("click", () => {
+    document.getElementById("import-file").click();
+  });
+
+  document.getElementById("import-file").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file || !sb) return;
+    try {
+      const text = await file.text();
+      const rows = JSON.parse(text).map(({ id, created_at, ...rest }) => rest);
+      const { error } = await sb.from("chores").insert(rows);
+      if (error) throw error;
+      showToast(`${rows.length} tâches importées`);
+      await loadChores();
+    } catch (err) {
+      showToast("Import invalide : " + err.message);
+    }
+  });
+
+  // --- Démarrage ---
+  checkStandalone();
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  }
+  if (initSupabase()) {
+    loadChores();
+  }
+</script>
+</body>
+</html>
