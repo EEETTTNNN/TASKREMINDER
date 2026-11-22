@@ -1,4 +1,4 @@
-<!-- Entretien Maison PWA v1.1.1 | 1071 lignes -->
+<!-- Entretien Maison PWA v1.1.2 | 1121 lignes -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -314,7 +314,7 @@
       border: 2px solid var(--ink);
       padding: 8px;
       word-break: break-all;
-      margin-bottom: 10px;
+      margin-bottom: 6px;
       user-select: all;
     }
 
@@ -336,6 +336,24 @@
 
     .filter-chip.active {
       background: var(--cyan);
+    }
+
+    .diag-box {
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 8px 10px;
+      border: 2px solid var(--ink);
+      background: #EFECE4;
+      margin-bottom: 12px;
+      line-height: 1.35;
+    }
+
+    .diag-box.err {
+      background: #FFD6D6;
+    }
+
+    .diag-box.ok {
+      background: #D6FFE8;
     }
   </style>
 </head>
@@ -414,6 +432,7 @@
   <section id="view-settings" class="hidden">
     <div class="card">
       <div class="section-title">1. Connexion Supabase</div>
+      <div id="db-status-detail" class="diag-box">Vérification de la base de données...</div>
       <label for="cfg-url">Project URL</label>
       <input type="url" id="cfg-url" />
 
@@ -438,18 +457,20 @@
     </div>
 
     <div class="card">
-      <div class="section-title">3. Générateur de clés VAPID (optionnel)</div>
+      <div class="section-title">3. Générateur de clés VAPID</div>
       <p style="font-size:0.85rem; margin-top:0; line-height:1.4;">
-        Déjà pré-rempli avec ta clé publique. À utiliser uniquement si tu souhaites renouveler ta paire de clés.
+        Génère une paire valide puis utilise les boutons <strong>Copier</strong> pour les coller sans erreur dans <strong>Supabase → Edge Functions → Secrets</strong>.
       </p>
-      <button type="button" id="btn-gen-vapid" class="btn-full btn-cyan" style="margin-bottom:12px;">Générer une nouvelle paire VAPID</button>
+      <button type="button" id="btn-gen-vapid" class="btn-full btn-cyan" style="margin-bottom:12px;">Générer une paire de clés VAPID</button>
 
       <div id="vapid-output" class="hidden">
         <label>VAPID_PUBLIC_KEY</label>
         <div id="out-vapid-pub" class="mono-box"></div>
+        <button type="button" id="btn-copy-pub" class="btn-sm btn-white" style="margin-bottom:12px;">Copier VAPID_PUBLIC_KEY</button>
 
         <label>VAPID_PRIVATE_KEY</label>
         <div id="out-vapid-priv" class="mono-box"></div>
+        <button type="button" id="btn-copy-priv" class="btn-sm btn-white">Copier VAPID_PRIVATE_KEY</button>
       </div>
     </div>
 
@@ -495,11 +516,11 @@
   })();
 
   // --- Configuration pré-remplie ---
-  const STORAGE_KEY = "entretien_maison_cfg_v2";
+  const STORAGE_KEY = "entretien_maison_cfg_v3";
   const DEFAULT_CFG = {
     url: "https://wcnalvccujzhrkzwseov.supabase.co",
     anon: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjbmFsdmNjdWp6aHJrendzZW92Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUyOTYzMTUsImV4cCI6MjExMDg3MjMxNX0.2a5ifwIa5qq1u2we2x7-atRIMqH8DMHqk2XDQr6ivPM",
-    vapid: "BMoxJpA9G1vAQcSimEs7EpyltAm2ompkWsnv6eYA_50jLo35q2wLbSesNuP8cb5SxKEp3dAV0GsN-DeEu8jQL1g"
+    vapid: ""
   };
 
   function cleanStr(s) {
@@ -520,7 +541,7 @@
   let chores = [];
   let currentFilter = "all";
 
-  // --- Client REST Supabase natif (sans dépendance CDN) ---
+  // --- Client REST Supabase natif ---
   async function sbRequest(path, options = {}) {
     const res = await fetch(`${cfg.url}/rest/v1/${path}`, {
       method: options.method || "GET",
@@ -622,6 +643,21 @@
     window._toastTimer = setTimeout(() => el.classList.add("hidden"), 3200);
   }
 
+  async function copyText(text, label) {
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast(`${label} copiée !`);
+    } catch (e) {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+      showToast(`${label} copiée !`);
+    }
+  }
+
   function checkStandalone() {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     const isStandalone = window.navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
@@ -638,6 +674,7 @@
 
   async function loadChores() {
     const badge = document.getElementById("sync-status");
+    const diag = document.getElementById("db-status-detail");
     badge.textContent = "Synchro...";
     badge.className = "sync-badge";
 
@@ -645,11 +682,15 @@
       const data = await sbRequest("chores?select=*&order=next_due_at.asc");
       badge.textContent = "À jour";
       badge.className = "sync-badge ok";
+      diag.textContent = `Base connectée (${data.length} tâche(s)).`;
+      diag.className = "diag-box ok";
       chores = data || [];
       renderChores();
     } catch (err) {
       badge.textContent = "Erreur";
       badge.className = "sync-badge err";
+      diag.textContent = "Erreur base : " + err.message;
+      diag.className = "diag-box err";
       showToast("Erreur Supabase : " + err.message);
     }
   }
@@ -951,7 +992,17 @@
     document.getElementById("out-vapid-priv").textContent = privKey;
     document.getElementById("vapid-output").classList.remove("hidden");
     document.getElementById("cfg-vapid").value = pubKey;
-    showToast("Clés VAPID générées !");
+    cfg.vapid = pubKey;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+    showToast("Nouvelles clés VAPID générées !");
+  });
+
+  document.getElementById("btn-copy-pub").addEventListener("click", () => {
+    copyText(document.getElementById("out-vapid-pub").textContent, "VAPID_PUBLIC_KEY");
+  });
+
+  document.getElementById("btn-copy-priv").addEventListener("click", () => {
+    copyText(document.getElementById("out-vapid-priv").textContent, "VAPID_PRIVATE_KEY");
   });
 
   // --- Notifications Web Push ---
@@ -978,7 +1029,6 @@
       const reg = await navigator.serviceWorker.register("./sw.js");
       await navigator.serviceWorker.ready;
 
-      // Désabonner toute ancienne souscription liée à une précédente clé VAPID
       const existingSub = await reg.pushManager.getSubscription();
       if (existingSub) {
         const oldEndpoint = existingSub.endpoint;
