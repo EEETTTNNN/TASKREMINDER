@@ -1,6 +1,6 @@
 {
-  "name": "Entretien Maison",
-  "short_name": "Entretien",
+  "name": "TaskReminder",
+  "short_name": "TaskReminder",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -8,10 +8,10 @@
   "theme_color": "#FFD600",
   "icons": [
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='96' fill='%23FFD600'/%3E%3Crect x='24' y='24' width='464' height='464' rx='76' fill='none' stroke='%23111111' stroke-width='24'/%3E%3Cpath d='M150 265 L225 340 L370 180' fill='none' stroke='%23111111' stroke-width='44' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E",
+      "src": "./appicon.jpg",
       "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/jpeg",
+      "purpose": "any"
     }
   ]
 }
