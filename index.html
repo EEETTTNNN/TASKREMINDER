@@ -1,3 +1,4 @@
+<!-- Entretien Maison PWA v1.1.0 -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -10,7 +11,6 @@
   <title>Entretien Maison — Tâches récurrentes</title>
   <link rel="manifest" href="./manifest.json" />
   <link rel="apple-touch-icon" id="apple-icon" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
       --bg: #F4F1EA;
@@ -183,7 +183,6 @@
       box-shadow: var(--shadow-sm);
     }
 
-    /* Chore item */
     .chore-card {
       background: var(--card);
       border: var(--border);
@@ -260,7 +259,6 @@
       gap: 6px;
     }
 
-    /* Bottom nav */
     nav {
       position: fixed;
       bottom: 0;
@@ -304,7 +302,8 @@
       font-size: 0.88rem;
       border: 2px solid var(--yellow);
       z-index: 50;
-      white-space: nowrap;
+      max-width: 92vw;
+      text-align: center;
       box-shadow: var(--shadow);
     }
 
@@ -345,7 +344,7 @@
 <header>
   <div class="header-top">
     <h1>Entretien Maison</h1>
-    <span id="sync-status" class="sync-badge">Non connecté</span>
+    <span id="sync-status" class="sync-badge">Connexion...</span>
   </div>
 </header>
 
@@ -356,11 +355,6 @@
       Sur iPhone : appuie sur <strong>Partager</strong> (carré avec flèche) puis <strong>Sur l'écran d'accueil</strong>, et ouvre l'application depuis cette icône pour activer les notifications.
     </div>
 
-    <div id="setup-prompt-banner" class="banner hidden">
-      Commence par renseigner ton URL et ta clé Supabase dans l'onglet <strong>Réglages</strong> en bas.
-    </div>
-
-    <!-- Formulaire ajout / édition -->
     <div class="card">
       <div class="section-title">
         <span id="form-heading">Nouvelle tâche récurrente</span>
@@ -402,7 +396,6 @@
       </form>
     </div>
 
-    <!-- Filtres + Liste -->
     <div class="filter-bar" id="filter-bar">
       <button type="button" class="filter-chip active" data-filter="all">Toutes</button>
       <button type="button" class="filter-chip" data-filter="due">À faire / Retard</button>
@@ -422,41 +415,41 @@
     <div class="card">
       <div class="section-title">1. Connexion Supabase</div>
       <label for="cfg-url">Project URL</label>
-      <input type="url" id="cfg-url" placeholder="https://xxxxxxxxxxxx.supabase.co" />
+      <input type="url" id="cfg-url" />
 
       <label for="cfg-anon">Clé API (anon public)</label>
-      <input type="text" id="cfg-anon" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6..." />
+      <input type="text" id="cfg-anon" />
 
       <label for="cfg-vapid">Clé publique VAPID (pour les notifications)</label>
-      <input type="text" id="cfg-vapid" placeholder="BEl62iUYgUivxIkv69yViEuiBIa..." />
+      <input type="text" id="cfg-vapid" />
 
       <button type="button" id="btn-save-cfg" class="btn-full btn-green">Enregistrer la configuration</button>
     </div>
 
     <div class="card">
-      <div class="section-title">2. Générateur de clés VAPID</div>
-      <p style="font-size:0.85rem; margin-top:0; line-height:1.4;">
-        Si tu n'as pas encore de clés VAPID, génère-les ici une seule fois, puis copie-les dans <strong>Supabase → Edge Functions → Secrets</strong>.
-      </p>
-      <button type="button" id="btn-gen-vapid" class="btn-full btn-cyan" style="margin-bottom:12px;">Générer une paire de clés VAPID</button>
-
-      <div id="vapid-output" class="hidden">
-        <label>VAPID_PUBLIC_KEY (à mettre aussi dans le champ ci-dessus)</label>
-        <div id="out-vapid-pub" class="mono-box"></div>
-
-        <label>VAPID_PRIVATE_KEY (à garder uniquement dans les Secrets Supabase)</label>
-        <div id="out-vapid-priv" class="mono-box"></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="section-title">3. Notifications iPhone</div>
+      <div class="section-title">2. Notifications iPhone</div>
       <p id="push-status-text" style="font-size:0.85rem; margin-top:0; font-weight:700;">
-        Statut : en attente de configuration.
+        Statut : prêt à activer sur cet appareil.
       </p>
       <div class="row-equal">
         <button type="button" id="btn-enable-push" class="btn-yellow">Activer sur cet appareil</button>
         <button type="button" id="btn-test-push" class="btn-white">Tester un envoi</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">3. Générateur de clés VAPID (optionnel)</div>
+      <p style="font-size:0.85rem; margin-top:0; line-height:1.4;">
+        Déjà pré-rempli avec ta clé publique. À utiliser uniquement si tu souhaites renouveler ta paire de clés.
+      </p>
+      <button type="button" id="btn-gen-vapid" class="btn-full btn-cyan" style="margin-bottom:12px;">Générer une nouvelle paire VAPID</button>
+
+      <div id="vapid-output" class="hidden">
+        <label>VAPID_PUBLIC_KEY</label>
+        <div id="out-vapid-pub" class="mono-box"></div>
+
+        <label>VAPID_PRIVATE_KEY</label>
+        <div id="out-vapid-priv" class="mono-box"></div>
       </div>
     </div>
 
@@ -479,7 +472,7 @@
 <div id="toast" class="toast hidden"></div>
 
 <script>
-  // --- Génération dynamique de l'icône Apple Touch ---
+  // --- Icône Apple Touch ---
   (function generateAppleIcon() {
     const canvas = document.createElement("canvas");
     canvas.width = 512;
@@ -501,12 +494,58 @@
     document.getElementById("apple-icon").href = canvas.toDataURL("image/png");
   })();
 
-  // --- État global ---
-  const STORAGE_KEY = "entretien_maison_cfg_v1";
-  let cfg = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-  let sb = null;
+  // --- Configuration pré-remplie ---
+  const STORAGE_KEY = "entretien_maison_cfg_v2";
+  const DEFAULT_CFG = {
+    url: "https://wcnalvccujzhrkzwseov.supabase.co",
+    anon: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjbmFsdmNjdWp6aHJrendzZW92Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUyOTYzMTUsImV4cCI6MjExMDg3MjMxNX0.2a5ifwIa5qq1u2we2x7-atRIMqH8DMHqk2XDQr6ivPM",
+    vapid: "BMoxJpA9G1vAQcSimEs7EpyltAm2ompkWsnv6eYA_50jLo35q2wLbSesNuP8cb5SxKEp3dAV0GsN-DeEu8jQL1g"
+  };
+
+  function cleanStr(s) {
+    return String(s || "").replace(/\s+/g, "");
+  }
+
+  let saved = {};
+  try {
+    saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+  } catch (e) {}
+
+  let cfg = {
+    url: cleanStr(saved.url && !saved.url.includes("supabase.com/dashboard") ? saved.url : DEFAULT_CFG.url).replace(/\/$/, ""),
+    anon: cleanStr(saved.anon || DEFAULT_CFG.anon),
+    vapid: cleanStr(saved.vapid || DEFAULT_CFG.vapid)
+  };
+
   let chores = [];
   let currentFilter = "all";
+
+  // --- Client REST Supabase natif (sans dépendance CDN) ---
+  async function sbRequest(path, options = {}) {
+    const res = await fetch(`${cfg.url}/rest/v1/${path}`, {
+      method: options.method || "GET",
+      headers: {
+        "apikey": cfg.anon,
+        "Authorization": `Bearer ${cfg.anon}`,
+        "Content-Type": "application/json",
+        ...(options.headers || {})
+      },
+      body: options.body ? JSON.stringify(options.body) : undefined
+    });
+
+    const text = await res.text();
+    let data = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch (e) {
+      throw new Error("Réponse invalide de Supabase (vérifie l'URL).");
+    }
+
+    if (!res.ok) {
+      throw new Error((data && (data.message || data.error)) || `Erreur HTTP ${res.status}`);
+    }
+    return data;
+  }
 
   // --- Utilitaires Date ---
   function getTodayStr() {
@@ -580,10 +619,9 @@
     el.textContent = msg;
     el.classList.remove("hidden");
     clearTimeout(window._toastTimer);
-    window._toastTimer = setTimeout(() => el.classList.add("hidden"), 2800);
+    window._toastTimer = setTimeout(() => el.classList.add("hidden"), 3200);
   }
 
-  // --- Détection iOS Standalone ---
   function checkStandalone() {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     const isStandalone = window.navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
@@ -592,49 +630,28 @@
     }
   }
 
-  // --- Initialisation Supabase ---
-  function initSupabase() {
-    const badge = document.getElementById("sync-status");
-    const promptBanner = document.getElementById("setup-prompt-banner");
-
-    document.getElementById("cfg-url").value = cfg.url || "";
-    document.getElementById("cfg-anon").value = cfg.anon || "";
-    document.getElementById("cfg-vapid").value = cfg.vapid || "";
-
-    if (!cfg.url || !cfg.anon) {
-      badge.textContent = "Non configuré";
-      badge.className = "sync-badge err";
-      promptBanner.classList.remove("hidden");
-      return false;
-    }
-
-    promptBanner.classList.add("hidden");
-    sb = window.supabase.createClient(cfg.url, cfg.anon);
-    badge.textContent = "Connecté";
-    badge.className = "sync-badge ok";
-    return true;
+  function syncInputsFromCfg() {
+    document.getElementById("cfg-url").value = cfg.url;
+    document.getElementById("cfg-anon").value = cfg.anon;
+    document.getElementById("cfg-vapid").value = cfg.vapid;
   }
 
   async function loadChores() {
-    if (!sb) return;
     const badge = document.getElementById("sync-status");
     badge.textContent = "Synchro...";
-    const { data, error } = await sb
-      .from("chores")
-      .select("*")
-      .order("next_due_at", { ascending: true });
+    badge.className = "sync-badge";
 
-    if (error) {
-      badge.textContent = "Erreur SQL";
+    try {
+      const data = await sbRequest("chores?select=*&order=next_due_at.asc");
+      badge.textContent = "À jour";
+      badge.className = "sync-badge ok";
+      chores = data || [];
+      renderChores();
+    } catch (err) {
+      badge.textContent = "Erreur";
       badge.className = "sync-badge err";
-      showToast("Erreur : " + error.message);
-      return;
+      showToast("Erreur Supabase : " + err.message);
     }
-
-    badge.textContent = "À jour";
-    badge.className = "sync-badge ok";
-    chores = data || [];
-    renderChores();
   }
 
   // --- Rendu des tâches ---
@@ -720,7 +737,7 @@
             Prochain : <strong>${formatDateFR(c.next_due_at)}</strong>
           </div>
           <div class="btn-group">
-            <button type="button" class="btn-sm btn-white" onclick="editChore('${c.id}')" title="Modifier">Éditer</button>
+            <button type="button" class="btn-sm btn-white" onclick="editChore('${c.id}')">Éditer</button>
             <button type="button" class="btn-sm btn-green" onclick="markDone('${c.id}')">Fait !</button>
           </div>
         </div>
@@ -728,16 +745,11 @@
     `).join("");
   }
 
-  // --- Actions CRUD ---
+  // --- CRUD Tâches ---
   document.getElementById("f-last-done").value = getTodayStr();
 
   document.getElementById("chore-form").addEventListener("submit", async (e) => {
     e.preventDefault();
-    if (!sb) {
-      showToast("Configure d'abord Supabase dans Réglages.");
-      return;
-    }
-
     const id = document.getElementById("edit-id").value;
     const title = document.getElementById("f-title").value.trim();
     const freq_value = parseInt(document.getElementById("f-freq-val").value, 10) || 1;
@@ -748,42 +760,45 @@
 
     if (!title) return;
 
-    if (id) {
-      const { error } = await sb
-        .from("chores")
-        .update({ title, freq_value, freq_unit, category, last_done_at, next_due_at })
-        .eq("id", id);
-      if (error) return showToast("Erreur : " + error.message);
-      showToast("Tâche mise à jour");
-      resetForm();
-    } else {
-      const { error } = await sb
-        .from("chores")
-        .insert([{ title, freq_value, freq_unit, category, last_done_at, next_due_at }]);
-      if (error) return showToast("Erreur : " + error.message);
-      showToast("Tâche ajoutée");
-      document.getElementById("f-title").value = "";
+    try {
+      if (id) {
+        await sbRequest(`chores?id=eq.${id}`, {
+          method: "PATCH",
+          body: { title, freq_value, freq_unit, category, last_done_at, next_due_at }
+        });
+        showToast("Tâche mise à jour");
+        resetForm();
+      } else {
+        await sbRequest("chores", {
+          method: "POST",
+          body: [{ title, freq_value, freq_unit, category, last_done_at, next_due_at }]
+        });
+        showToast("Tâche ajoutée");
+        document.getElementById("f-title").value = "";
+      }
+      await loadChores();
+    } catch (err) {
+      showToast("Erreur : " + err.message);
     }
-
-    await loadChores();
   });
 
   window.markDone = async function (id) {
-    if (!sb) return;
     const item = chores.find((c) => c.id === id);
     if (!item) return;
 
     const today = getTodayStr();
     const next_due_at = computeNextDue(today, item.freq_value, item.freq_unit);
 
-    const { error } = await sb
-      .from("chores")
-      .update({ last_done_at: today, next_due_at })
-      .eq("id", id);
-
-    if (error) return showToast("Erreur : " + error.message);
-    showToast(`Validé ! Prochain rappel le ${formatDateFR(next_due_at)}`);
-    await loadChores();
+    try {
+      await sbRequest(`chores?id=eq.${id}`, {
+        method: "PATCH",
+        body: { last_done_at: today, next_due_at }
+      });
+      showToast(`Validé ! Prochain rappel le ${formatDateFR(next_due_at)}`);
+      await loadChores();
+    } catch (err) {
+      showToast("Erreur : " + err.message);
+    }
   };
 
   window.editChore = function (id) {
@@ -799,7 +814,6 @@
     document.getElementById("btn-submit").textContent = "Enregistrer";
     document.getElementById("btn-cancel-edit").classList.remove("hidden");
 
-    // Ajouter un bouton supprimer si absent
     if (!document.getElementById("btn-delete-edit")) {
       const delBtn = document.createElement("button");
       delBtn.type = "button";
@@ -809,10 +823,14 @@
       delBtn.textContent = "Supprimer cette tâche";
       delBtn.onclick = async () => {
         if (!confirm("Supprimer définitivement cette tâche ?")) return;
-        await sb.from("chores").delete().eq("id", item.id);
-        resetForm();
-        showToast("Tâche supprimée");
-        await loadChores();
+        try {
+          await sbRequest(`chores?id=eq.${item.id}`, { method: "DELETE" });
+          resetForm();
+          showToast("Tâche supprimée");
+          await loadChores();
+        } catch (err) {
+          showToast("Erreur : " + err.message);
+        }
       };
       document.getElementById("chore-form").appendChild(delBtn);
     }
@@ -835,9 +853,7 @@
 
   document.getElementById("btn-cancel-edit").addEventListener("click", resetForm);
 
-  // Exemples pré-remplis
   document.getElementById("btn-seed").addEventListener("click", async () => {
-    if (!sb) return showToast("Configure d'abord Supabase dans Réglages.");
     const today = getTodayStr();
     const samples = [
       { title: "Nettoyer le four", category: "Cuisine", freq_value: 1, freq_unit: "years" },
@@ -850,10 +866,13 @@
       next_due_at: computeNextDue(today, s.freq_value, s.freq_unit)
     }));
 
-    const { error } = await sb.from("chores").insert(samples);
-    if (error) return showToast("Erreur : " + error.message);
-    showToast("4 tâches ajoutées !");
-    await loadChores();
+    try {
+      await sbRequest("chores", { method: "POST", body: samples });
+      showToast("4 tâches ajoutées !");
+      await loadChores();
+    } catch (err) {
+      showToast("Erreur : " + err.message);
+    }
   });
 
   // --- Filtres & Navigation ---
@@ -883,18 +902,17 @@
   // --- Sauvegarde Configuration ---
   document.getElementById("btn-save-cfg").addEventListener("click", async () => {
     cfg = {
-      url: document.getElementById("cfg-url").value.trim().replace(/\/$/, ""),
-      anon: document.getElementById("cfg-anon").value.trim(),
-      vapid: document.getElementById("cfg-vapid").value.trim()
+      url: cleanStr(document.getElementById("cfg-url").value).replace(/\/$/, ""),
+      anon: cleanStr(document.getElementById("cfg-anon").value),
+      vapid: cleanStr(document.getElementById("cfg-vapid").value)
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+    syncInputsFromCfg();
     showToast("Configuration enregistrée");
-    if (initSupabase()) {
-      await loadChores();
-    }
+    await loadChores();
   });
 
-  // --- Générateur VAPID natif (Web Crypto API) ---
+  // --- Générateur VAPID ---
   function bufferToBase64Url(buf) {
     const bytes = new Uint8Array(buf);
     let bin = "";
@@ -903,8 +921,9 @@
   }
 
   function base64UrlToUint8Array(base64url) {
-    const padding = "=".repeat((4 - (base64url.length % 4)) % 4);
-    const base64 = (base64url + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const clean = cleanStr(base64url);
+    const padding = "=".repeat((4 - (clean.length % 4)) % 4);
+    const base64 = (clean + padding).replace(/-/g, "+").replace(/_/g, "/");
     const raw = atob(base64);
     const arr = new Uint8Array(raw.length);
     for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
@@ -935,11 +954,15 @@
     showToast("Clés VAPID générées !");
   });
 
-  // --- Notifications Web Push (iOS / Desktop) ---
+  // --- Notifications Web Push ---
   document.getElementById("btn-enable-push").addEventListener("click", async () => {
     const statusEl = document.getElementById("push-status-text");
-    if (!sb) return showToast("Configure d'abord Supabase.");
-    if (!cfg.vapid) return showToast("Renseigne la clé publique VAPID.");
+    const vapidKey = cleanStr(document.getElementById("cfg-vapid").value || cfg.vapid);
+
+    if (!vapidKey) {
+      showToast("Clé publique VAPID manquante.");
+      return;
+    }
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
       statusEl.textContent = "Statut : non supporté (sur iPhone, ouvre depuis l'écran d'accueil).";
       return;
@@ -948,7 +971,7 @@
     try {
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
-        statusEl.textContent = "Statut : permission refusée dans les réglages.";
+        statusEl.textContent = "Statut : permission refusée dans les réglages iOS.";
         return;
       }
 
@@ -957,30 +980,29 @@
 
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: base64UrlToUint8Array(cfg.vapid)
+        applicationServerKey: base64UrlToUint8Array(vapidKey)
       });
 
       const subJson = sub.toJSON();
-      const { error } = await sb.from("push_subscriptions").upsert(
-        {
+      await sbRequest("push_subscriptions?on_conflict=endpoint", {
+        method: "POST",
+        headers: { "Prefer": "resolution=merge-duplicates,return=minimal" },
+        body: {
           endpoint: subJson.endpoint,
           p256dh: subJson.keys.p256dh,
           auth: subJson.keys.auth
-        },
-        { onConflict: "endpoint" }
-      );
+        }
+      });
 
-      if (error) throw error;
       statusEl.textContent = "Statut : activé sur cet appareil !";
       showToast("Notifications activées !");
     } catch (err) {
       statusEl.textContent = "Erreur : " + err.message;
-      showToast("Échec activation push");
+      showToast("Échec : " + err.message);
     }
   });
 
   document.getElementById("btn-test-push").addEventListener("click", async () => {
-    if (!cfg.url || !cfg.anon) return showToast("Configure d'abord Supabase.");
     showToast("Envoi du test...");
     try {
       const res = await fetch(`${cfg.url}/functions/v1/send-chore-reminders?test=1`, {
@@ -991,7 +1013,7 @@
         }
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erreur serveur");
+      if (!res.ok) throw new Error(data.error || `Erreur HTTP ${res.status}`);
       showToast(`Notification envoyée (${data.sent} appareil)`);
     } catch (err) {
       showToast("Erreur : " + err.message);
@@ -1013,12 +1035,11 @@
 
   document.getElementById("import-file").addEventListener("change", async (e) => {
     const file = e.target.files[0];
-    if (!file || !sb) return;
+    if (!file) return;
     try {
       const text = await file.text();
       const rows = JSON.parse(text).map(({ id, created_at, ...rest }) => rest);
-      const { error } = await sb.from("chores").insert(rows);
-      if (error) throw error;
+      await sbRequest("chores", { method: "POST", body: rows });
       showToast(`${rows.length} tâches importées`);
       await loadChores();
     } catch (err) {
@@ -1028,12 +1049,11 @@
 
   // --- Démarrage ---
   checkStandalone();
+  syncInputsFromCfg();
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./sw.js").catch(() => {});
   }
-  if (initSupabase()) {
-    loadChores();
-  }
+  loadChores();
 </script>
 </body>
 </html>
