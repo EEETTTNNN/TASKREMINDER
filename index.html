@@ -1,4 +1,4 @@
-<!-- Entretien Maison PWA v1.1.0 -->
+<!-- Entretien Maison PWA v1.1.1 | 1071 lignes -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -977,6 +977,18 @@
 
       const reg = await navigator.serviceWorker.register("./sw.js");
       await navigator.serviceWorker.ready;
+
+      // Désabonner toute ancienne souscription liée à une précédente clé VAPID
+      const existingSub = await reg.pushManager.getSubscription();
+      if (existingSub) {
+        const oldEndpoint = existingSub.endpoint;
+        await existingSub.unsubscribe();
+        try {
+          await sbRequest(`push_subscriptions?endpoint=eq.${encodeURIComponent(oldEndpoint)}`, {
+            method: "DELETE"
+          });
+        } catch (e) {}
+      }
 
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
